@@ -1,45 +1,53 @@
-pipeline { 
-    agent any 
-    stages {
-        stage('Build') { 
-            steps {
-                withMaven(maven : 'apache-maven-3.6.0'){
-                        sh "mvn clean compile"
-                }
-            }
-        }
-        stage('Test'){
-            steps {
-                withMaven(maven : 'apache-maven-3.6.0'){
-                        sh "mvn test"
-                }
+pipeline {
+  agent any
 
-            }
-        }
-        stage('build && SonarQube analysis') {
-            steps {
-                withSonarQubeEnv('sonar.tools.devops.****') {
-                    sh 'sonar-scanner -Dsonar.projectKey=myProject -Dsonar.sources=./src'
-                }
-            }
-        }
-        stage("Quality Gate") {
-            steps {
-                timeout(time: 1, unit: 'HOURS') {
-                    // Parameter indicates whether to set pipeline to UNSTABLE if Quality Gate fails
-                    // true = set pipeline to UNSTABLE, false = don't
-                    // Requires SonarScanner for Jenkins 2.7+
-                    waitForQualityGate abortPipeline: true
-                }
-            }
-			}
-        stage('Deploy') {
-            steps {
-               withMaven(maven : 'apache-maven-3.6.0'){
-                        sh "mvn deploy"
-                }
+  environment {
+    BRANCH = "master"
+    TAG_NAME = "v2.${BUILD_NUMBER}"
+    GIT_CREDENTIALS = "git-credentials"
+  }
 
-            }
-        }
+  stages {
+    stage("Checkout") {
+      steps {
+        checkout([
+          $class: 'GitSCM',
+          branches: [[name: "*/${BRANCH}"]],
+          userRemoteConfigs: [[
+            url: "https://github.com/optmlako2004/HelloWorldMaven.git",
+            credentialsId: GIT_CREDENTIALS
+          ]]
+        ])
+      }
     }
+
+    stage("Create Tag") {
+      steps {
+        withCredentials([usernamePassword(
+          credentialsId: GIT_CREDENTIALS,
+          usernameVariable: 'GIT_USER',
+          passwordVariable: 'GIT_PASS'
+        )]) {
+          sh """
+            git config user.email "christianangelaelako@gmail.com"
+            git config user.name "optimalako2004"
+
+            git checkout ${BRANCH}
+            git tag -a ${TAG_NAME} -m "Tag créé par Jenkins build ${BUILD_NUMBER}"
+
+            git push https://${GIT_USER}:${GIT_PASS}@github.com/optmlako2004/HelloWorldMaven.git ${TAG_NAME}
+          """
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "Tag ${TAG_NAME} créé avec succès"
+    }
+    failure {
+      echo "Échec création du tag"
+    }
+  }
 }
