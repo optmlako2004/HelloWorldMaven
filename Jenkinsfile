@@ -3,7 +3,7 @@ pipeline {
 
   environment {
     BRANCH = "master"
-    TAG_NAME = "v2.${BUILD_NUMBER}"
+    TAG_NAME = "v3.${BUILD_NUMBER}"
     GIT_CREDENTIALS = "git-credentials"
   }
 
